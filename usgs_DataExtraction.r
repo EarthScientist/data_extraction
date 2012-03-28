@@ -7,7 +7,7 @@ setwd("/workspace/UA/malindgren/projects/DataExtract_USGS/working")
 # lets set some variables needed:
 # this is the input folder that has the data to be listed
 in_data <- "/Data/Base_Data/Climate/AK_CAN_2km/AK_CAN_2km/cru_TS31/historical/pr/"
-out_data <- "/workspace/UA/malindgren/projects/DataExtract_USGS/Data_given/working/"
+out_data <- "/workspace/UA/malindgren/projects/DataExtract_USGS/working/"
 
 # this is the input shapefile
 pointSPDF <- readShapePoints("/workspace/UA/malindgren/projects/DataExtract_USGS/Data_given/orig_all_pts_shape.shp")
@@ -15,6 +15,7 @@ pointSPDF <- readShapePoints("/workspace/UA/malindgren/projects/DataExtract_USGS
 # here are a couple of things I need from that shapefile
 # the xy coordinates
 xy <- cbind(pointSPDF$POINT_X,pointSPDF$POINT_Y)
+
 # the data.frame
 site_names <- pointSPDF$Site_Name
 # lets bring them together
@@ -51,6 +52,9 @@ e <- extent(raster(s, layer=1))
 
 # create a new blank raster with what we know about the layers in the stack to use in adjacent query
 blankRaster <- raster(e, nrows=nrow(raster(s, layer=1)), ncols=ncol(raster(s, layer=1)), crs=projection(s))
+
+# get the cell numbers from the xy coordinates of the input points
+in_cells <- cellFromXY(blankRaster, xy)
 
 # a counter for the below loop
 count=0
@@ -102,13 +106,13 @@ colnames(combined_extractor_xy) <- c("CellNum","POINT_X","POINT_Y","SiteName","F
 combined_extractor_xy <- combined_extractor_xy[order(combined_extractor_xy$SiteName),]
 
 # extract the values using a vector of the cell numbers
-extraction <- extract(s, combined_extractor_xy[,1])
+extraction <- extract(s, as.numeric(combined_extractor_xy[,1]))
 
 # now we want to create a new output table
 output_extraction <- cbind(combined_extractor_xy[,2:ncol(combined_extractor_xy)], extraction)
 
 # write out the final csv file with the extraction
-write.csv(output_extraction, file=paste(out_data, variable,"_",metric,"_",model,"_","SNAP_extraction.csv", sep=""), row.names=F, col.names=T)
+write.csv(output_extraction, file=paste(out_data, variable,"_",metric,"_",model,"_","SNAP_extraction.csv", sep=""), row.names=F)
 
 # END
 
