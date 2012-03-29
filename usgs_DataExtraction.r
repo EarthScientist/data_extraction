@@ -54,38 +54,40 @@ e <- extent(raster(s, layer=1))
 blankRaster <- raster(e, nrows=nrow(raster(s, layer=1)), ncols=ncol(raster(s, layer=1)), crs=projection(s))
 
 # get the cell numbers from the xy coordinates of the input points
-in_cells <- cellFromXY(blankRaster, xy)
+in_cells <- data.frame(cellFromXY(blankRaster, xy))
+
+# now we need to unlist that var into something we can iterate through
+in_cells <- unlist(in_cells)
 
 # a counter for the below loop
 count=0
 
 for(i in in_cells){
+	
 	count=count+1
 
 	# ask it which 8 cells are adjacent to the input cell
 	adj_cells <- adjacent(blankRaster, i, directions=8, pairs=F, target=NULL, sorted=T, include=F, id=T)
-
+	print(adj_cells)
 	site_name <- xy_site_names[count,3]
+	print(paste(count, site_name))
 	
 	if(count == 1){
-		adj_cells_sites <- cbind(adj_cells, site_name)	
+		adj_cells_sites <- data.frame(adj_cells, site_name)	
 	}else{
-		adj_cells_sites_tmp <- cbind(adj_cells, site_name)
+		adj_cells_sites_tmp <- data.frame(adj_cells, site_name)
 		adj_cells_sites <- rbind(adj_cells_sites, adj_cells_sites_tmp)
 	}
 }
 
-# turn the created matrix into a data.frame
-adj_cells_sites <- as.data.frame(adj_cells_sites)
-
 # create a new table of the xy values and a zero column since all of these are the adjacent cells not the focal 
-adj_cells_extractor <- cbind(adj_cells_sites, "0")
+adj_cells_extractor <- data.frame(adj_cells_sites, as.data.frame("0"))
 
 # give some names to those new columns
 colnames(adj_cells_extractor) <- c("CellNum","SiteName","FocalCell")
 
 # here we are doing the same as above but with the focal cells
-in_cells_extractor <- as.data.frame(cbind(cellFromXY(blankRaster, xy), xy_site_names[,3], "1"))
+in_cells_extractor <- data.frame(cellFromXY(blankRaster, xy), xy_site_names[,3], as.data.frame("1"))
 
 # give the same column names as above with the adjacent cells
 colnames(in_cells_extractor) <- c("CellNum","SiteName","FocalCell")
@@ -94,30 +96,25 @@ colnames(in_cells_extractor) <- c("CellNum","SiteName","FocalCell")
 combined_extractor <- rbind(in_cells_extractor, adj_cells_extractor)
 
 # here we grab the xy values of the centroids of the input and adjacent pixels
-out_xy <- as.data.frame(xyFromCell(blankRaster, as.numeric(combined_extractor[,1]), spatial=FALSE))
+out_xy <- xyFromCell(blankRaster, combined_extractor[,1], spatial=FALSE)
 
 # this is the new extractor that will be used to get the desired data
-combined_extractor_xy <- cbind(combined_extractor[,1], out_xy, as.data.frame(combined_extractor[,2:3]))
+combined_extractor_xy <- data.frame(combined_extractor[,1], out_xy, combined_extractor[,2:3])
 
 # set their column names
 colnames(combined_extractor_xy) <- c("CellNum","POINT_X","POINT_Y","SiteName","FocalCell")
 
-# re-order the data in the table base on the SiteName
-combined_extractor_xy <- combined_extractor_xy[order(combined_extractor_xy$SiteName),]
-
 # extract the values using a vector of the cell numbers
-extraction <- extract(s, as.numeric(combined_extractor_xy[,1]))
+extraction <- extract(s, combined_extractor_xy[,1])
 
 # now we want to create a new output table
 output_extraction <- cbind(combined_extractor_xy[,2:ncol(combined_extractor_xy)], extraction)
 
+# here I sort the entire data.frame based on the site_name variable
+output_extraction <- output_extraction[order(output_extraction[,3]),]
+
 # write out the final csv file with the extraction
 write.csv(output_extraction, file=paste(out_data, variable,"_",metric,"_",model,"_","SNAP_extraction.csv", sep=""), row.names=F)
 
+rm(list=ls())
 # END
-
-
-
-
-
-
